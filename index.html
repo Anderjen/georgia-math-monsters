@@ -256,6 +256,53 @@
     border-radius: 3px; animation: confettiFall linear forwards;
   }
 
+  /* ── SCRATCHPAD ── */
+  .scratch-trigger {
+    background: rgba(255,255,255,.12); border: none; border-radius: 8px;
+    font-size: 1.1em; padding: 3px 7px; cursor: pointer; transition: background .2s;
+  }
+  .scratch-trigger:hover { background: rgba(255,255,255,.22); }
+
+  #scratchModal {
+    position: fixed; inset: 0; z-index: 500;
+    display: flex; flex-direction: column;
+    background: #fffdf4;
+    animation: slideIn .25s ease;
+  }
+  .scratch-header {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    background: #fff8e1; padding: 10px 12px;
+    border-bottom: 2px solid #f0d060;
+    flex-shrink: 0;
+  }
+  .scratch-title { font-size: 1em; font-weight: 700; color: #5d4037; flex-shrink: 0; }
+  .scratch-tools { display: flex; gap: 6px; align-items: center; flex: 1; }
+  .scratch-tool-btn {
+    background: #fff; border: 2px solid #ddd; border-radius: 8px;
+    font-size: 1.1em; padding: 4px 8px; cursor: pointer; transition: all .15s;
+  }
+  .scratch-tool-btn.active { border-color: #f0a500; background: #fff8e1; }
+  .scratch-color {
+    width: 26px; height: 26px; border-radius: 50%;
+    border: 2px solid rgba(0,0,0,.2); cursor: pointer; transition: transform .15s;
+  }
+  .scratch-color:hover { transform: scale(1.2); }
+  .scratch-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .scratch-btn {
+    border: none; border-radius: 10px; font-size: .85em; font-weight: 700;
+    padding: 7px 14px; cursor: pointer; transition: all .15s;
+  }
+  .scratch-btn.clear { background: #ffebee; color: #c62828; }
+  .scratch-btn.close { background: #e8f5e9; color: #2e7d32; }
+  .scratch-btn:active { transform: scale(.94); }
+
+  #scratchCanvas {
+    flex: 1; width: 100%; touch-action: none; cursor: crosshair;
+    background: repeating-linear-gradient(
+      transparent, transparent 27px, #e0d8b0 28px
+    ), #fffdf4;
+  }
+
   @media (max-width: 380px) {
     .q-text { font-size: 1.5em; }
     .sprite  { font-size: 3.2em; }
@@ -285,6 +332,7 @@
     <span class="battle-progress" id="bProgress">Monster 1 of 5</span>
     <span class="battle-mode"    id="bMode">Warm-Up</span>
     <span class="battle-accuracy" id="bAccuracy">⭐ 100%</span>
+    <button class="scratch-trigger" onclick="openScratch()" title="Open scratchpad">📝</button>
   </div>
 
   <div class="battlefield">
@@ -370,6 +418,25 @@
   <div class="result-sub">That monster got you this time!<br>You can do it — let's try again! 💪</div>
   <button class="big-btn" onclick="retryRound()">🔄 Try Again!</button>
   <button class="big-btn alt" onclick="goHome()">🏠 Home</button>
+</div>
+
+<!-- ═══ SCRATCHPAD MODAL ═══ -->
+<div id="scratchModal" style="display:none">
+  <div class="scratch-header">
+    <span class="scratch-title">📝 Work it out!</span>
+    <div class="scratch-tools">
+      <button class="scratch-tool-btn active" id="penBtn" onclick="setTool('pen')" title="Pen">✏️</button>
+      <button class="scratch-tool-btn" id="eraserBtn" onclick="setTool('eraser')" title="Eraser">🧹</button>
+      <button class="scratch-color" style="background:#222" onclick="setPenColor('#222')" title="Black"></button>
+      <button class="scratch-color" style="background:#e63946" onclick="setPenColor('#e63946')" title="Red"></button>
+      <button class="scratch-color" style="background:#2196f3" onclick="setPenColor('#2196f3')" title="Blue"></button>
+    </div>
+    <div class="scratch-actions">
+      <button class="scratch-btn clear" onclick="clearScratch()">🗑️ Clear</button>
+      <button class="scratch-btn close" onclick="closeScratch()">✅ Done</button>
+    </div>
+  </div>
+  <canvas id="scratchCanvas"></canvas>
 </div>
 
 <script>
@@ -898,6 +965,84 @@ function confetti(n) {
     document.body.appendChild(el);
     setTimeout(()=>el.remove(),4000);
   }, i*40);
+}
+
+// ══════════════════════════════════════
+// SCRATCHPAD
+// ══════════════════════════════════════
+let scratchCtx, scratchDrawing=false, scratchTool='pen', scratchColor='#222';
+
+function openScratch() {
+  const modal=$('scratchModal'); modal.style.display='flex';
+  const canvas=$('scratchCanvas');
+  // Size canvas to its display size
+  const rect=canvas.getBoundingClientRect();
+  if(canvas.width!==Math.floor(rect.width)||canvas.height!==Math.floor(rect.height)){
+    const saved=canvas.toDataURL();
+    canvas.width=Math.floor(rect.width)||360;
+    canvas.height=Math.floor(rect.height)||480;
+    // restore drawing if any
+    if(saved!=='data:,'){const img=new Image();img.onload=()=>scratchCtx.drawImage(img,0,0);img.src=saved;}
+  }
+  scratchCtx=canvas.getContext('2d');
+  scratchCtx.lineCap='round'; scratchCtx.lineJoin='round';
+  // Bind events
+  canvas.onpointerdown=scratchStart;
+  canvas.onpointermove=scratchMove;
+  canvas.onpointerup=scratchEnd;
+  canvas.onpointerleave=scratchEnd;
+  canvas.setPointerCapture; // capture for stylus
+}
+
+function closeScratch() { $('scratchModal').style.display='none'; }
+
+function clearScratch() {
+  const c=$('scratchCanvas');
+  scratchCtx.clearRect(0,0,c.width,c.height);
+}
+
+function setTool(t) {
+  scratchTool=t;
+  $('penBtn').classList.toggle('active',t==='pen');
+  $('eraserBtn').classList.toggle('active',t==='eraser');
+}
+
+function setPenColor(c) {
+  scratchColor=c; scratchTool='pen';
+  $('penBtn').classList.add('active');
+  $('eraserBtn').classList.remove('active');
+}
+
+function getPos(e) {
+  const canvas=$('scratchCanvas'), rect=canvas.getBoundingClientRect();
+  const scaleX=canvas.width/rect.width, scaleY=canvas.height/rect.height;
+  return { x:(e.clientX-rect.left)*scaleX, y:(e.clientY-rect.top)*scaleY };
+}
+
+function scratchStart(e) {
+  e.preventDefault();
+  scratchDrawing=true;
+  const p=getPos(e);
+  scratchCtx.beginPath();
+  scratchCtx.moveTo(p.x,p.y);
+  if(scratchTool==='eraser'){scratchCtx.globalCompositeOperation='destination-out';scratchCtx.lineWidth=28;}
+  else{scratchCtx.globalCompositeOperation='source-over';scratchCtx.strokeStyle=scratchColor;scratchCtx.lineWidth=3;}
+  $('scratchCanvas').setPointerCapture(e.pointerId);
+}
+
+function scratchMove(e) {
+  if(!scratchDrawing) return;
+  e.preventDefault();
+  const p=getPos(e);
+  scratchCtx.lineTo(p.x,p.y);
+  scratchCtx.stroke();
+  scratchCtx.beginPath();
+  scratchCtx.moveTo(p.x,p.y);
+}
+
+function scratchEnd(e) {
+  scratchDrawing=false;
+  scratchCtx.beginPath();
 }
 
 // ══════════════════════════════════════
