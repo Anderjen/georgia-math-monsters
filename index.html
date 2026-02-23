@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🐉 Math Monsters — Georgia's Game</title>
+<style>
+  :root {
+    --bg: #1a0a2e;
+    --card: #2d1b4e;
+    --card2: #3d2b5e;
+    --accent: #ff6b9d;
+    --accent2: #00d4aa;
+    --accent3: #ffd700;
+    --text: #f0e6ff;
+    --text2: #b8a9d4;
+    --correct: #00d4aa;
+    --wrong: #ff4757;
+    --hint: #ffd700;
+    --shadow: rgba(0,0,0,0.5);
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  .screen { display: none; }
+  .screen.active { display: flex; flex-direction: column; min-height: 100vh; }
+
+  /* ── HOME ── */
+  #home {
+    padding: 24px 20px 32px;
+    align-items: center;
+    background: radial-gradient(ellipse at top, #2d1b4e 0%, #1a0a2e 70%);
+  }
+  .home-title { text-align: center; margin-bottom: 6px; }
+  .home-title h1 {
+    font-size: 2.6em; font-weight: 900; line-height: 1.1;
+    background: linear-gradient(90deg, #ff6b9d, #ffd700, #00d4aa);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .home-title p { color: var(--text2); font-size: .9em; margin-top: 4px; }
+  .trophy-row { display: flex; gap: 6px; margin: 14px 0 4px; font-size: .8em; color: var(--text2); }
+  .mode-grid { display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 420px; margin: 10px 0; }
+  .mode-card {
+    background: var(--card); border-radius: var(--radius);
+    padding: 16px 18px; cursor: pointer;
+    border: 2px solid transparent; transition: all .2s;
+    position: relative; overflow: hidden;
+  }
+  .mode-card:hover:not(.locked) { transform: translateY(-2px); box-shadow: 0 8px 24px var(--shadow); }
+  .mode-card.locked { opacity: .5; cursor: not-allowed; }
+  .mode-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+  .mode-emoji { font-size: 2em; }
+  .mode-info h3 { font-size: 1.05em; font-weight: 700; }
+  .mode-info p { font-size: .78em; color: var(--text2); margin-top: 2px; }
+  .mode-stars { margin-left: auto; font-size: 1.1em; }
+  .mode-topics { font-size: .72em; color: var(--text2); line-height: 1.4; }
+  .lock-badge { position: absolute; top: 10px; right: 14px; font-size: 1.4em; }
+  .home-tip { color: var(--text2); font-size: .78em; text-align: center; margin-top: 10px; }
+
+  /* ── BATTLE ── */
+  #battle { background: linear-gradient(180deg, #150820 0%, #2d1b4e 60%, #150820 100%); }
+  .battle-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 16px; background: rgba(0,0,0,.35); font-size: .82em; color: var(--text2);
+  }
+  .battle-progress { font-weight: 700; color: var(--text); }
+  .battle-mode { color: var(--accent); font-weight: 600; }
+  .battle-accuracy { color: var(--accent3); font-weight: 600; }
+
+  .battlefield {
+    display: flex; justify-content: space-around; align-items: flex-end;
+    padding: 18px 12px 8px; gap: 8px;
+  }
+  .fighter { display: flex; flex-direction: column; align-items: center; flex: 1; }
+  .fighter-label { font-size: .72em; color: var(--text2); margin-bottom: 4px; font-weight: 600; }
+  .hp-bar-bg {
+    width: 100%; background: rgba(255,255,255,.1);
+    border-radius: 20px; height: 9px; overflow: hidden; margin-bottom: 6px;
+  }
+  .hp-bar { height: 100%; border-radius: 20px; transition: width .45s ease; }
+  .hero .hp-bar { background: linear-gradient(90deg, #00d4aa, #00f5c4); }
+  .enemy .hp-bar { background: linear-gradient(90deg, #ff4757, #ff6b9d); }
+  .sprite {
+    font-size: 4em; line-height: 1; display: block;
+    transition: transform .1s; will-change: transform;
+  }
+  .hero .sprite { filter: drop-shadow(0 0 14px rgba(0,212,170,.6)); animation: floatAnim 3s ease-in-out infinite; }
+  .enemy .sprite { filter: drop-shadow(0 0 14px rgba(255,107,157,.6)); }
+  .fighter-name { font-size: .85em; font-weight: 700; color: var(--accent); margin-top: 4px; }
+  .fighter-taunt { font-size: .68em; color: var(--text2); font-style: italic; text-align: center; margin-top: 2px; max-width: 120px; }
+  .hp-text { font-size: .68em; color: var(--text2); margin-top: 2px; }
+  .vs { font-size: 1.5em; font-weight: 900; color: var(--accent3); align-self: center; padding-bottom: 28px; text-shadow: 0 0 20px rgba(255,215,0,.5); }
+
+  /* ── QUESTION AREA ── */
+  .question-area {
+    background: var(--card); margin: 0 12px 12px;
+    border-radius: var(--radius); padding: 18px 16px;
+    box-shadow: 0 4px 24px var(--shadow); flex-shrink: 0;
+  }
+  .q-label { font-size: .7em; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .q-text {
+    font-size: 1.85em; font-weight: 800; color: var(--text);
+    margin-bottom: 14px; text-align: center; line-height: 1.3; min-height: 1.4em; white-space: pre-line;
+  }
+  .frac-visual { display: flex; gap: 5px; justify-content: center; margin-bottom: 12px; }
+  .frac-cell {
+    width: 40px; height: 40px; border-radius: 8px;
+    border: 2px solid rgba(255,255,255,.25); transition: background .3s;
+  }
+  .frac-cell.filled { background: var(--accent); border-color: var(--accent); }
+  .frac-cell.empty { background: rgba(255,255,255,.08); }
+  .answer-row { display: flex; gap: 10px; margin-bottom: 10px; }
+  .answer-input {
+    flex: 1; background: var(--card2); border: 2px solid rgba(255,255,255,.12);
+    border-radius: 12px; color: var(--text); font-size: 1.4em; font-weight: 700;
+    text-align: center; padding: 10px; outline: none; transition: border-color .2s;
+    -moz-appearance: textfield;
+  }
+  .answer-input::-webkit-inner-spin-button, .answer-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+  .answer-input:focus { border-color: var(--accent); }
+  .answer-input.wrong-shake { border-color: var(--wrong); }
+  .submit-btn {
+    background: linear-gradient(135deg, var(--accent), #c0496d);
+    border: none; border-radius: 12px; color: #fff;
+    font-size: 1em; font-weight: 700; padding: 10px 18px;
+    cursor: pointer; transition: all .15s; min-width: 80px;
+  }
+  .submit-btn:active { transform: scale(.94); }
+  .submit-btn:disabled { opacity: .35; cursor: not-allowed; }
+  .choices-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+  .choice-btn {
+    background: var(--card2); border: 2px solid rgba(255,255,255,.12);
+    border-radius: 12px; color: var(--text); font-size: .95em; font-weight: 600;
+    padding: 12px 8px; cursor: pointer; transition: all .18s; line-height: 1.3;
+  }
+  .choice-btn:hover:not(:disabled) { border-color: var(--accent); transform: translateY(-1px); }
+  .choice-btn.c-correct { border-color: var(--correct)!important; background: rgba(0,212,170,.18)!important; color: var(--correct)!important; }
+  .choice-btn.c-wrong   { border-color: var(--wrong)!important;   background: rgba(255,71,87,.1)!important; }
+
+  .feedback-area { min-height: 28px; text-align: center; margin-bottom: 8px; }
+  .feedback-pill {
+    font-size: .88em; font-weight: 600; padding: 5px 14px;
+    border-radius: 20px; display: inline-block;
+  }
+  .fp-correct { background: rgba(0,212,170,.14); color: var(--correct); }
+  .fp-wrong   { background: rgba(255,71,87,.1); color: #ff6b6b; }
+
+  /* HINT */
+  .hint-section { text-align: center; }
+  .hint-btn {
+    background: none; border: 2px solid var(--hint);
+    border-radius: 20px; color: var(--hint);
+    font-size: .82em; font-weight: 700; padding: 6px 18px;
+    cursor: pointer; transition: background .2s;
+  }
+  .hint-btn:hover { background: rgba(255,215,0,.1); }
+  .hint-btn.pulsing { animation: pulseGlow 1s ease-in-out infinite; }
+  .hint-box {
+    background: rgba(255,215,0,.07); border: 1px solid rgba(255,215,0,.25);
+    border-radius: 12px; padding: 12px 14px; margin-top: 8px;
+    text-align: left; font-size: .82em; color: var(--hint);
+    display: none; line-height: 1.5;
+  }
+  .hint-box.open { display: block; }
+  .walkthrough-text { margin-top: 8px; font-size: .88em; color: var(--text2); white-space: pre-line; display: none; }
+  .walkthrough-text.open { display: block; }
+
+  /* ── WIN / DEFEAT / VICTORY ── */
+  #victory, #defeat, #win {
+    align-items: center; justify-content: center;
+    padding: 30px 20px; text-align: center;
+    background: radial-gradient(ellipse at center, #2d1b4e, #1a0a2e);
+  }
+  .result-icon { font-size: 6em; margin-bottom: 14px; animation: popIn .4s cubic-bezier(.17,.67,.3,1.33); }
+  .result-title { font-size: 2.1em; font-weight: 900; margin-bottom: 8px; }
+  .result-sub { color: var(--text2); font-size: .95em; margin-bottom: 24px; line-height: 1.5; }
+  .stars-row { font-size: 2.6em; letter-spacing: 4px; margin: 10px 0; }
+  .stats-line { color: var(--text2); font-size: .88em; margin-bottom: 20px; }
+  .big-btn {
+    background: linear-gradient(135deg, var(--accent), #c0496d);
+    border: none; border-radius: 20px; color: #fff;
+    font-size: 1.05em; font-weight: 700; padding: 14px 34px;
+    cursor: pointer; transition: all .15s; margin: 6px;
+    box-shadow: 0 4px 18px rgba(255,107,157,.35);
+  }
+  .big-btn:active { transform: scale(.95); }
+  .big-btn.alt {
+    background: var(--card); box-shadow: none;
+    border: 2px solid rgba(255,255,255,.12);
+  }
+
+  /* ── ANIMATIONS ── */
+  @keyframes floatAnim  { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+  @keyframes shake      { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-9px)} 40%,80%{transform:translateX(9px)} }
+  @keyframes bounceUp   { 0%,100%{transform:translateY(0)} 40%{transform:translateY(-22px)} 70%{transform:translateY(-10px)} }
+  @keyframes popIn      { from{transform:scale(.4);opacity:0} to{transform:scale(1);opacity:1} }
+  @keyframes pulseGlow  { 0%,100%{box-shadow:0 0 0 0 rgba(255,215,0,.45)} 50%{box-shadow:0 0 0 8px rgba(255,215,0,0)} }
+  @keyframes confettiFall { 0%{transform:translateY(-20px) rotate(0deg);opacity:1} 100%{transform:translateY(105vh) rotate(720deg);opacity:0} }
+  @keyframes slideIn    { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+
+  .anim-shake  { animation: shake .4s ease; }
+  .anim-bounce { animation: bounceUp .5s ease; }
+  .anim-slidein{ animation: slideIn .3s ease; }
+
+  .confetti-bit {
+    position: fixed; top: -20px; pointer-events: none; z-index: 999;
+    border-radius: 3px; animation: confettiFall linear forwards;
+  }
+
+  @media (max-width: 380px) {
+    .q-text { font-size: 1.5em; }
+    .sprite  { font-size: 3.2em; }
+    .home-title h1 { font-size: 2em; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ HOME ═══ -->
+<div id="home" class="screen active">
+  <div class="home-title">
+    <h1>🐉 Math Monsters</h1>
+    <p>Georgia's Monster Battle Academy</p>
+  </div>
+  <div class="mode-grid" id="modeGrid"></div>
+  <p class="home-tip">Answer math questions to attack monsters!<br>Get hints whenever you need them 💡</p>
+</div>
+
+<!-- ═══ BATTLE ═══ -->
+<div id="battle" class="screen">
+  <div class="battle-header">
+    <span class="battle-progress" id="bProgress">Monster 1 of 5</span>
+    <span class="battle-mode"    id="bMode">Warm-Up</span>
+    <span class="battle-accuracy" id="bAccuracy">⭐ 100%</span>
+  </div>
+
+  <div class="battlefield">
+    <div class="fighter hero">
+      <div class="fighter-label">⚔️ Georgia</div>
+      <div class="hp-bar-bg"><div class="hp-bar" id="heroBar" style="width:100%"></div></div>
+      <span class="sprite" id="heroSprite">🦸‍♀️</span>
+      <div class="hp-text" id="heroHpTxt">❤️ 4/4</div>
+    </div>
+
+    <div class="vs">VS</div>
+
+    <div class="fighter enemy">
+      <div class="fighter-label" id="enemyLabel">👾 Enemy</div>
+      <div class="hp-bar-bg"><div class="hp-bar" id="enemyBar" style="width:100%"></div></div>
+      <span class="sprite" id="enemySprite">🐉</span>
+      <div class="fighter-name" id="enemyName">Dragon Dex</div>
+      <div class="fighter-taunt" id="enemyTaunt">"I breathe fire AND fractions!"</div>
+      <div class="hp-text" id="enemyHpTxt">💜 4/4</div>
+    </div>
+  </div>
+
+  <div class="question-area anim-slidein" id="questionArea">
+    <div class="q-label">⚡ Solve to attack!</div>
+    <div class="q-text" id="qText">Loading…</div>
+
+    <div class="frac-visual" id="fracVis" style="display:none"></div>
+
+    <div class="answer-row" id="answerRow">
+      <input class="answer-input" id="answerInput" type="number" inputmode="numeric" pattern="[0-9]*" placeholder="?" autocomplete="off">
+      <button class="submit-btn" id="submitBtn" onclick="submitTyped()">Go! ⚡</button>
+    </div>
+
+    <div class="choices-grid" id="choicesGrid" style="display:none"></div>
+
+    <div class="feedback-area" id="feedbackArea"></div>
+
+    <div class="hint-section">
+      <button class="hint-btn" id="hintBtn" onclick="toggleHint()">💡 Need a hint?</button>
+      <div class="hint-box" id="hintBox">
+        <div id="hintText"></div>
+        <div class="walkthrough-text" id="walkthroughText"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MONSTER DEFEATED ═══ -->
+<div id="victory" class="screen">
+  <div class="result-icon" id="victoryIcon">🎉</div>
+  <div class="result-title" style="color:var(--correct)">Monster Defeated!</div>
+  <div class="result-sub" id="victorySub">You beat Dragon Dex! Keep going!</div>
+  <div style="color:var(--text2);font-size:.82em;margin-bottom:20px">+1 ❤️ HP restored!</div>
+  <button class="big-btn" onclick="nextMonster()">Next Monster ➡️</button>
+</div>
+
+<!-- ═══ ROUND WIN ═══ -->
+<div id="win" class="screen">
+  <div class="result-icon">🏆</div>
+  <div class="result-title" style="color:var(--accent3)">Round Complete!</div>
+  <div class="stars-row" id="starsRow">⭐⭐⭐</div>
+  <div class="stats-line" id="winStats"></div>
+  <div class="result-sub" id="winMsg"></div>
+  <button class="big-btn" onclick="goHome()">🏠 Choose Mode</button>
+  <button class="big-btn alt" onclick="playAgain()">▶️ Play Again</button>
+</div>
+
+<!-- ═══ DEFEAT ═══ -->
+<div id="defeat" class="screen">
+  <div class="result-icon">💫</div>
+  <div class="result-title" style="color:#ff6b6b">Oops!</div>
+  <div class="result-sub">That monster got you this time!<br>You can do it — let's try again! 💪</div>
+  <button class="big-btn" onclick="retryRound()">🔄 Try Again!</button>
+  <button class="big-btn alt" onclick="goHome()">🏠 Home</button>
+</div>
+
+<script>
+'use strict';
+// ══════════════════════════════════════
+// DATA
+// ══════════════════════════════════════
+const MONSTERS = [
+  { name:'Slime Sammy',  emoji:'🟢', taunt:'"Heh heh, bet you can\'t!"' },
+  { name:'Ghost Gus',    emoji:'👻', taunt:'"Can you see through my tricks?"' },
+  { name:'Dragon Dex',   emoji:'🐉', taunt:'"I breathe FIRE and fractions!"' },
+  { name:'Wizard Wally', emoji:'🧙', taunt:'"My spells are made of numbers!"' },
+  { name:'Robot Rex',    emoji:'🤖', taunt:'"Beep boop… solve this… boop!"' },
+  { name:'Goblin Gabby', emoji:'👺', taunt:'"Hee hee, try if you dare!"' },
+  { name:'Octopus Otto', emoji:'🐙', taunt:'"8 arms, 8 problems — pick one!"' },
+];
+
+const MODES = [
+  { id:'warmup',    label:'Warm-Up',     emoji:'⭐', desc:'2nd Grade Catch-Up',  color:'#00d4aa',
+    topics:'Add/Subtract to 100 • Odd & Even • Place Value' },
+  { id:'main',      label:'Main Battle', emoji:'⚔️', desc:'3rd Grade Math',      color:'#ff6b9d',
+    topics:'Multiplication • Division • Big Numbers • Parentheses' },
+  { id:'fractions', label:'Fractions',   emoji:'🍕', desc:'3rd Grade Fractions', color:'#ffd700',
+    topics:'Halves • Thirds • Quarters • Comparing Fractions' },
+];
+
+// ══════════════════════════════════════
+// STATE
+// ══════════════════════════════════════
+let G = {
+  mode:'warmup', heroHp:4, enemyHp:4,
+  monstersBeaten:0, monstersTotal:5,
+  monsterSeed:0,
+  currentQ:null, wrongCount:0,
+  totalAns:0, correctAns:0,
+  hintOpen:false,
+};
+
+let progress = (() => { try { return JSON.parse(localStorage.getItem('mathMonsters_v2')||'{}'); } catch{return{};} })();
+const saveProgress = () => localStorage.setItem('mathMonsters_v2', JSON.stringify(progress));
+
+const isUnlocked = id => id==='warmup' || (id==='main' && (progress.warmup?.done||0)>=1) || (id==='fractions' && (progress.main?.done||0)>=1);
+const getStars   = id => progress[id]?.stars || 0;
+
+// ══════════════════════════════════════
+// QUESTION GENERATORS
+// ══════════════════════════════════════
+const ri = (a,b) => Math.floor(Math.random()*(b-a+1))+a;
+const pick = arr => arr[ri(0,arr.length-1)];
+const shuf = arr => { const a=[...arr]; for(let i=a.length-1;i>0;i--){const j=ri(0,i);[a[i],a[j]]=[a[j],a[i]];} return a; };
+
+function makeChoices(correct, pool, n=4) {
+  const set = new Set([String(correct)]);
+  const p = shuf(pool.filter(x=>String(x)!==String(correct)));
+  for(const v of p) { if(set.size>=n) break; set.add(String(v)); }
+  return shuf([...set]);
+}
+
+function genQuestion(mode) {
+  const pools = {
+    warmup:    [add20,add20,add100,sub100,oddeven,placevalue],
+    main:      [mult,mult,div,add1000,sub1000,mult10,parens],
+    fractions: [identFrac,identFrac,compareFrac,wordFrac],
+  };
+  return pick(pools[mode])();
+}
+
+function add20() {
+  const a=ri(1,10), b=ri(1,10);
+  return { type:'type', q:`${a} + ${b} = ?`, ans:a+b,
+    hint:`Count up from ${a}. Count ${b} more fingers!`,
+    walk:`Start at ${a}, then count: ${Array.from({length:b},(_,i)=>a+i+1).join(', ')}. Answer: ${a+b}!` };
+}
+function add100() {
+  const a=ri(11,59), b=ri(11,Math.min(40,99-a));
+  return { type:'type', q:`${a} + ${b} = ?`, ans:a+b,
+    hint:`Add the tens first, then the ones!`,
+    walk:`Tens: ${Math.floor(a/10)*10} + ${Math.floor(b/10)*10} = ${(Math.floor(a/10)+Math.floor(b/10))*10}\nOnes: ${a%10} + ${b%10} = ${(a%10)+(b%10)}\nTotal: ${a+b}!` };
+}
+function sub100() {
+  const a=ri(15,99), b=ri(5,Math.min(a-5,40));
+  return { type:'type', q:`${a} - ${b} = ?`, ans:a-b,
+    hint:`Think: what plus ${b} equals ${a}?`,
+    walk:`${a} - ${b}: start at ${a} and count back ${b}. Or: ${b} + ${a-b} = ${a}. Answer: ${a-b}!` };
+}
+function oddeven() {
+  const n=ri(2,60), even=n%2===0;
+  return { type:'choice', q:`Is  ${n}  odd or even?`, ans:even?'Even':'Odd',
+    choices:['Odd','Even','Neither','Not sure'],
+    hint:`Even numbers end in 0, 2, 4, 6, or 8. Odd numbers end in 1, 3, 5, 7, or 9.`,
+    walk:`Look at the last digit of ${n}: it ends in ${n%10}.\nNumbers ending in ${n%10} are ${even?'even':'odd'}.\nSo ${n} is ${even?'EVEN':'ODD'}!` };
+}
+function placevalue() {
+  const n=ri(102,987);
+  const places=['ones','tens','hundreds'];
+  const pl=pick(places);
+  const digits={ones:n%10, tens:Math.floor(n/10)%10, hundreds:Math.floor(n/100)};
+  const ans=digits[pl];
+  const pool=[0,1,2,3,4,5,6,7,8,9].filter(x=>x!==ans);
+  return { type:'choice', q:`In the number  ${n}\nwhat digit is in the\n${pl} place?`, ans:String(ans),
+    choices:makeChoices(ans,pool.slice(0,6)),
+    hint:`${n} has ${Math.floor(n/100)} hundreds, ${Math.floor(n/10)%10} tens, and ${n%10} ones.`,
+    walk:`Breaking ${n} apart:\nHundreds = ${Math.floor(n/100)}\nTens = ${Math.floor(n/10)%10}\nOnes = ${n%10}\nSo the ${pl} place is ${ans}!` };
+}
+function mult() {
+  const a=ri(2,10), b=ri(2,10);
+  return { type:'type', q:`${a} × ${b} = ?`, ans:a*b,
+    hint:`${a} × ${b} means ${a} groups of ${b}. Count by ${b}s, ${a} times!`,
+    walk:`Counting by ${b}s: ${Array.from({length:a},(_,i)=>b*(i+1)).join(', ')}\nAnswer: ${a*b}!` };
+}
+function div() {
+  const a=ri(2,9), b=ri(2,9);
+  return { type:'type', q:`${a*b} ÷ ${a} = ?`, ans:b,
+    hint:`Think: ${a} × ? = ${a*b}. What times ${a} gives ${a*b}?`,
+    walk:`Counting by ${a}s: ${Array.from({length:b},(_,i)=>a*(i+1)).join(', ')}\nWe reach ${a*b} after ${b} steps.\nAnswer: ${b}!` };
+}
+function add1000() {
+  const a=ri(101,699), b=ri(101,Math.min(300,999-a));
+  return { type:'type', q:`${a} + ${b} = ?`, ans:a+b,
+    hint:`Add the hundreds first, then tens, then ones!`,
+    walk:`${a} + ${b}:\nHundreds: ${Math.floor(a/100)*100} + ${Math.floor(b/100)*100}\nThen add the rest: ${a%100} + ${b%100} = ${a%100+b%100}\nTotal: ${a+b}!` };
+}
+function sub1000() {
+  const a=ri(300,999), b=ri(101,Math.min(a-50,499));
+  return { type:'type', q:`${a} - ${b} = ?`, ans:a-b,
+    hint:`Subtract the hundreds first, then work on the rest!`,
+    walk:`${a} - ${b}:\nSubtract ${Math.floor(b/100)*100}: ${a} - ${Math.floor(b/100)*100} = ${a-Math.floor(b/100)*100}\nThen subtract ${b%100}: ${a-Math.floor(b/100)*100} - ${b%100} = ${a-b}!` };
+}
+function mult10() {
+  const a=ri(2,9), tens=pick([10,20,30,40,50,60,70,80,90]);
+  return { type:'type', q:`${a} × ${tens} = ?`, ans:a*tens,
+    hint:`${a} × ${tens} = ${a} × ${tens/10} × 10. Multiply first, then add a zero!`,
+    walk:`Step 1: ${a} × ${tens/10} = ${a*(tens/10)}\nStep 2: Add a zero → ${a*tens}!` };
+}
+function parens() {
+  const a=ri(1,6), b=ri(1,6), c=ri(2,5);
+  const inner=a+b, ans=inner*c;
+  return { type:'type', q:`( ${a} + ${b} ) × ${c} = ?`, ans,
+    hint:`Solve INSIDE the ( ) first, then multiply!`,
+    walk:`Step 1: Solve ( ): ${a} + ${b} = ${inner}\nStep 2: Now multiply: ${inner} × ${c} = ${ans}!` };
+}
+function identFrac() {
+  const pairs=[[1,2],[1,3],[1,4],[2,3],[3,4],[1,6],[2,6],[3,6]];
+  const [num,den]=pick(pairs);
+  const distractors=pairs.filter(([n,d])=>!(n===num&&d===den)).map(([n,d])=>`${n}/${d}`);
+  return { type:'choicefrac', q:`What fraction is shaded?`, ans:`${num}/${den}`,
+    choices:makeChoices(`${num}/${den}`,distractors),
+    fracNum:num, fracDen:den,
+    hint:`Count the SHADED pieces. Count ALL pieces. Shaded/Total = the fraction!`,
+    walk:`Total pieces: ${den}\nShaded pieces: ${num}\nFraction = ${num}/${den}!` };
+}
+function compareFrac() {
+  const pairs=[['1/2','1/4'],['1/3','1/2'],['3/4','1/4'],['2/3','1/3'],['1/2','1/3'],['3/4','2/3'],['1/4','1/3']];
+  const [f1,f2]=pick(pairs);
+  const val=(f)=>{ const [n,d]=f.split('/').map(Number); return n/d; };
+  const bigger=val(f1)>val(f2)?f1:f2;
+  return { type:'choice', q:`Which fraction is BIGGER?\n${f1}  or  ${f2}`, ans:bigger,
+    choices:shuf([f1,f2,"They're equal","Can't tell"]),
+    hint:`Imagine a pizza cut into pieces. Bigger denominator = smaller slices!`,
+    walk:`${f1} = ${val(f1).toFixed(2)}\n${f2} = ${val(f2).toFixed(2)}\nSo ${bigger} is bigger!` };
+}
+function wordFrac() {
+  const scenarios=[
+    {q:'A pizza has 4 slices.\nGeorgia ate 1 slice.\nWhat fraction did she eat?',  ans:'1/4', pool:['1/2','1/3','3/4','2/4'], h:'Slices eaten ÷ Total slices!', w:'1 eaten out of 4 slices = 1/4!'},
+    {q:'A cookie has 2 equal halves.\nSadie ate 1 half.\nWhat fraction did she eat?', ans:'1/2', pool:['1/3','1/4','2/3','3/4'], h:'1 piece out of 2 = ?',          w:'1 out of 2 = 1/2!'},
+    {q:'There are 3 cookies.\nGeorgia ate 2 of them.\nWhat fraction did she eat?',   ans:'2/3', pool:['1/3','3/4','1/2','1/4'], h:'Eaten ÷ Total cookies!',           w:'2 eaten out of 3 total = 2/3!'},
+    {q:'A pie has 4 slices.\n3 slices are eaten.\nWhat fraction is LEFT?',           ans:'1/4', pool:['3/4','2/4','1/2','1/3'], h:'How many are NOT eaten? That\'s what\'s left!', w:'4 - 3 = 1 slice left. 1 out of 4 = 1/4!'},
+  ];
+  const s=pick(scenarios);
+  return { type:'choice', q:s.q, ans:s.ans, choices:makeChoices(s.ans,s.pool), hint:s.h, walk:s.w };
+}
+
+// ══════════════════════════════════════
+// UI HELPERS
+// ══════════════════════════════════════
+const $ = id => document.getElementById(id);
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  $(id).classList.add('active');
+}
+function anim(el, cls) {
+  el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls);
+}
+
+// ══════════════════════════════════════
+// HOME
+// ══════════════════════════════════════
+function renderHome() {
+  const grid = $('modeGrid'); grid.innerHTML='';
+  MODES.forEach(m=>{
+    const unlocked=isUnlocked(m.id), stars=getStars(m.id);
+    const starStr='⭐'.repeat(stars)+'☆'.repeat(3-stars);
+    const div=document.createElement('div');
+    div.className=`mode-card${unlocked?'':' locked'}`;
+    div.style.borderLeft=unlocked?`4px solid ${m.color}`:'';
+    div.innerHTML=`
+      <div class="mode-card-header">
+        <div class="mode-emoji">${m.emoji}</div>
+        <div class="mode-info"><h3>${m.label}</h3><p>${m.desc}</p></div>
+        <div class="mode-stars">${starStr}</div>
+      </div>
+      <div class="mode-topics">${m.topics}</div>
+      ${!unlocked?'<div class="lock-badge">🔒</div>':''}
+    `;
+    if(unlocked) div.onclick=()=>startMode(m.id);
+    grid.appendChild(div);
+  });
+  showScreen('home');
+}
+
+// ══════════════════════════════════════
+// BATTLE
+// ══════════════════════════════════════
+function startMode(modeId) {
+  G = { mode:modeId, heroHp:4, enemyHp:4, monstersBeaten:0, monstersTotal:5,
+        monsterSeed:ri(0,100), currentQ:null, wrongCount:0,
+        totalAns:0, correctAns:0, hintOpen:false };
+  loadMonster(); showBattle();
+}
+
+function getMonster() {
+  return MONSTERS[(G.monsterSeed + G.monstersBeaten * 3) % MONSTERS.length];
+}
+
+function loadMonster() {
+  const m=getMonster();
+  $('enemySprite').textContent=m.emoji;
+  $('enemyName').textContent=m.name;
+  $('enemyTaunt').textContent=m.taunt;
+  G.enemyHp=4;
+  updateBars();
+  nextQuestion();
+}
+
+function nextQuestion() {
+  G.currentQ=genQuestion(G.mode);
+  G.wrongCount=0;
+  G.hintOpen=false;
+  renderQ();
+}
+
+function showBattle() {
+  const m=MODES.find(x=>x.id===G.mode);
+  $('bMode').textContent=m.label;
+  updateBars(); updateHeader();
+  showScreen('battle');
+}
+
+function updateHeader() {
+  $('bProgress').textContent=`Monster ${G.monstersBeaten+1} of ${G.monstersTotal}`;
+  const pct=G.totalAns?Math.round(G.correctAns/G.totalAns*100):100;
+  $('bAccuracy').textContent=`⭐ ${pct}%`;
+}
+
+function updateBars() {
+  $('heroBar').style.width=(G.heroHp/4*100)+'%';
+  $('enemyBar').style.width=(G.enemyHp/4*100)+'%';
+  $('heroHpTxt').textContent=`❤️ ${G.heroHp}/4`;
+  $('enemyHpTxt').textContent=`💜 ${G.enemyHp}/4`;
+}
+
+function renderQ() {
+  const q=G.currentQ;
+  $('qText').textContent=q.q;
+  $('feedbackArea').innerHTML='';
+  closeHint();
+
+  // Fraction visual
+  const fv=$('fracVis');
+  if(q.type==='choicefrac') {
+    fv.style.display='flex'; fv.innerHTML='';
+    for(let i=0;i<q.fracDen;i++){
+      const cell=document.createElement('div');
+      cell.className=`frac-cell ${i<q.fracNum?'filled':'empty'}`;
+      fv.appendChild(cell);
+    }
+  } else { fv.style.display='none'; }
+
+  if(q.type==='type') {
+    $('answerRow').style.display='flex';
+    $('choicesGrid').style.display='none';
+    const inp=$('answerInput');
+    inp.value=''; inp.disabled=false; inp.className='answer-input';
+    $('submitBtn').disabled=false;
+    setTimeout(()=>inp.focus(),120);
+  } else {
+    $('answerRow').style.display='none';
+    const grid=$('choicesGrid');
+    grid.style.display='grid'; grid.innerHTML='';
+    (q.choices||[]).forEach(c=>{
+      const btn=document.createElement('button');
+      btn.className='choice-btn'; btn.textContent=c;
+      btn.onclick=()=>submitChoice(c, btn);
+      grid.appendChild(btn);
+    });
+  }
+}
+
+// ══════════════════════════════════════
+// ANSWER HANDLING
+// ══════════════════════════════════════
+function submitTyped() {
+  const val=$('answerInput').value.trim();
+  if(!val) return;
+  processResult(parseInt(val,10)===G.currentQ.ans);
+}
+
+function submitChoice(chosen, btn) {
+  document.querySelectorAll('.choice-btn').forEach(b=>{
+    b.disabled=true;
+    if(b.textContent===G.currentQ.ans) b.classList.add('c-correct');
+    else if(b===btn && chosen!==G.currentQ.ans) b.classList.add('c-wrong');
+  });
+  processResult(chosen===G.currentQ.ans);
+}
+
+function processResult(correct) {
+  G.totalAns++;
+  updateHeader();
+
+  if(correct) {
+    G.correctAns++;
+    G.wrongCount=0;
+    feedback(true);
+    anim($('heroSprite'),'anim-bounce');
+    anim($('enemySprite'),'anim-shake');
+    $('answerInput').disabled=true; $('submitBtn').disabled=true;
+    G.enemyHp--;
+    setTimeout(()=>{ updateBars(); if(G.enemyHp<=0) setTimeout(onMonsterDefeated,350); else setTimeout(nextQuestion,700); },400);
+  } else {
+    G.wrongCount++;
+    feedback(false);
+    anim($('heroSprite'),'anim-shake');
+    G.heroHp--;
+    setTimeout(()=>{
+      updateBars();
+      if(G.heroHp<=0) { setTimeout(()=>showScreen('defeat'),500); return; }
+      $('hintBtn').classList.add('pulsing');
+      if(G.wrongCount>=2) openHint(true); // auto-show walkthrough after 2 wrong
+      const inp=$('answerInput');
+      if($('answerRow').style.display!=='none') {
+        inp.className='answer-input wrong-shake';
+        setTimeout(()=>{ inp.value=''; inp.className='answer-input'; inp.disabled=false; $('submitBtn').disabled=false; inp.focus(); },500);
+      }
+    },300);
+  }
+}
+
+function feedback(correct) {
+  const good=['Great job! ⚡','That\'s right! 💥','Awesome! 🌟','You got it! ✨','Yes!! 🎉'];
+  const bad=['Almost! Try the hint 💡','So close! 👀','Keep trying! 💪','Oops! Check the hint 💡','Nearly! 🤔'];
+  const msg=pick(correct?good:bad);
+  $('feedbackArea').innerHTML=`<span class="feedback-pill ${correct?'fp-correct':'fp-wrong'}">${msg}</span>`;
+}
+
+// ══════════════════════════════════════
+// HINT
+// ══════════════════════════════════════
+function toggleHint() {
+  if(G.hintOpen) closeHint(); else openHint(false);
+}
+function openHint(withWalkthrough) {
+  const q=G.currentQ;
+  $('hintText').textContent=`💡 ${q.hint}`;
+  $('hintBox').classList.add('open');
+  $('hintBtn').classList.remove('pulsing');
+  G.hintOpen=true;
+  if(withWalkthrough && q.walk) {
+    $('walkthroughText').textContent=`📖 Step by step:\n${q.walk}`;
+    $('walkthroughText').classList.add('open');
+  }
+}
+function closeHint() {
+  $('hintBox').classList.remove('open');
+  $('walkthroughText').classList.remove('open');
+  $('hintBtn').classList.remove('pulsing');
+  G.hintOpen=false;
+}
+
+// ══════════════════════════════════════
+// ROUND FLOW
+// ══════════════════════════════════════
+function onMonsterDefeated() {
+  const m=getMonster();
+  $('victoryIcon').textContent=m.emoji;
+  $('victorySub').textContent=`You defeated ${m.name}! 🎉`;
+  confetti(10);
+  showScreen('victory');
+}
+
+function nextMonster() {
+  G.monstersBeaten++;
+  G.heroHp=Math.min(G.heroHp+1,4); // heal between fights
+  if(G.monstersBeaten>=G.monstersTotal) { roundOver(); return; }
+  loadMonster(); showBattle();
+}
+
+function roundOver() {
+  const pct=Math.round(G.correctAns/G.totalAns*100);
+  const stars=pct>=90?3:pct>=70?2:1;
+  if(!progress[G.mode]) progress[G.mode]={stars:0,done:0};
+  progress[G.mode].stars=Math.max(progress[G.mode].stars,stars);
+  progress[G.mode].done=(progress[G.mode].done||0)+1;
+  saveProgress();
+
+  let msg='';
+  if(G.mode==='warmup'&&progress.warmup.done===1) msg='🎉 You unlocked Main Battle!';
+  else if(G.mode==='main'&&progress.main.done===1) msg='🎉 You unlocked Fractions mode!';
+  else msg=stars===3?'Perfect! You\'re a math monster slayer! 🗡️':stars===2?'Great job! Keep practicing! 💪':'You did it! More stars next time! ⭐';
+
+  $('starsRow').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);
+  $('winStats').textContent=`${G.correctAns} correct out of ${G.totalAns} questions (${pct}%)`;
+  $('winMsg').textContent=msg;
+  confetti(25);
+  showScreen('win');
+}
+
+function retryRound() { startMode(G.mode); }
+function playAgain()  { startMode(G.mode); }
+function goHome()     { renderHome(); }
+
+// ══════════════════════════════════════
+// CONFETTI
+// ══════════════════════════════════════
+function confetti(n) {
+  const colors=['#ff6b9d','#ffd700','#00d4aa','#ff4757','#a29bfe','#fd79a8','#74b9ff'];
+  for(let i=0;i<n;i++) setTimeout(()=>{
+    const el=document.createElement('div');
+    el.className='confetti-bit';
+    el.style.cssText=`left:${ri(5,95)}%;background:${colors[i%colors.length]};width:${ri(7,14)}px;height:${ri(7,14)}px;animation-delay:${ri(0,400)}ms;animation-duration:${ri(2000,3500)}ms;`;
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(),4000);
+  }, i*40);
+}
+
+// ══════════════════════════════════════
+// KEYBOARD
+// ══════════════════════════════════════
+document.addEventListener('keydown', e=>{
+  if(e.key==='Enter' && document.querySelector('.screen.active')?.id==='battle') submitTyped();
+});
+
+// ══════════════════════════════════════
+// START
+// ══════════════════════════════════════
+renderHome();
+</script>
+</body>
+</html>
