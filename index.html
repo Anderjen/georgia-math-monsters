@@ -83,6 +83,28 @@
   /* mini team in battle */
   .battle-team { display: flex; gap: 4px; justify-content: center; padding: 4px 16px 8px; flex-wrap: wrap; min-height: 28px; }
   .battle-team-member { font-size: 1.4em; filter: drop-shadow(0 0 6px rgba(255,215,0,.5)); animation: popIn .3s ease; }
+  .battle-team-member.attacking { animation: bounceUp .4s ease; }
+
+  /* Team Battle mode — big team display */
+  .team-fighters { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; padding: 6px 0 4px; }
+  .team-fighter-slot {
+    display: flex; flex-direction: column; align-items: center;
+    background: rgba(255,215,0,.07); border: 1px solid rgba(255,215,0,.2);
+    border-radius: 10px; padding: 4px 6px; min-width: 44px;
+  }
+  .team-fighter-slot .tf-emoji { font-size: 1.6em; line-height: 1; }
+  .team-fighter-slot .tf-name  { font-size: .52em; color: var(--accent3); margin-top: 2px; font-weight: 600; }
+  .team-fighter-slot.tf-attacking { animation: bounceUp .4s ease; }
+
+  .team-battle-banner {
+    text-align: center; font-size: .75em; font-weight: 700;
+    color: #ff4500; text-transform: uppercase; letter-spacing: 1px;
+    padding: 4px 0 2px; text-shadow: 0 0 12px rgba(255,69,0,.6);
+  }
+
+  .home-unlock-hint { font-size: .72em; color: var(--accent3); text-align: center; margin-top: 6px; }
+
+  @keyframes bounceUp { 0%,100%{transform:translateY(0)} 40%{transform:translateY(-18px)} 70%{transform:translateY(-8px)} }
 
   /* ── BATTLE ── */
   #battle { background: linear-gradient(180deg, #150820 0%, #2d1b4e 60%, #150820 100%); }
@@ -285,7 +307,14 @@
     </div>
   </div>
 
+  <!-- Normal mode: mini team sprites -->
   <div class="battle-team" id="battleTeam"></div>
+
+  <!-- Team Battle mode: full team fighters -->
+  <div id="teamBattlePanel" style="display:none;padding:0 12px 4px">
+    <div class="team-battle-banner">⚔️ Your Team is Fighting! ⚔️</div>
+    <div class="team-fighters" id="teamFighters"></div>
+  </div>
 
   <div class="question-area anim-slidein" id="questionArea">
     <div class="q-label">⚡ Solve to attack!</div>
@@ -365,6 +394,8 @@ const MODES = [
     topics:'Multiplication • Division • Big Numbers • Parentheses' },
   { id:'fractions', label:'Fractions',   emoji:'🍕', desc:'3rd Grade Fractions', color:'#ffd700',
     topics:'Halves • Thirds • Quarters • Comparing Fractions' },
+  { id:'teambattle', label:'Team Battle!', emoji:'🔥', desc:'Your monsters fight together!', color:'#ff4500',
+    topics:'All math types • Harder enemies • Your whole crew attacks!' },
 ];
 
 // ══════════════════════════════════════
@@ -382,7 +413,10 @@ let G = {
 let progress = (() => { try { return JSON.parse(localStorage.getItem('mathMonsters_v2')||'{}'); } catch{return{};} })();
 const saveProgress = () => localStorage.setItem('mathMonsters_v2', JSON.stringify(progress));
 
-const isUnlocked = id => id==='warmup' || (id==='main' && (progress.warmup?.done||0)>=1) || (id==='fractions' && (progress.main?.done||0)>=1);
+const isUnlocked = id => id==='warmup'
+  || (id==='main' && (progress.warmup?.done||0)>=1)
+  || (id==='fractions' && (progress.main?.done||0)>=1)
+  || (id==='teambattle' && (progress.team||[]).length>=5);
 const getStars   = id => progress[id]?.stars || 0;
 
 // ══════════════════════════════════════
@@ -401,11 +435,12 @@ function makeChoices(correct, pool, n=4) {
 
 function genQuestion(mode) {
   const pools = {
-    warmup:    [add20,add20,add100,sub100,oddeven,placevalue],
-    main:      [mult,mult,div,add1000,sub1000,mult10,parens],
-    fractions: [identFrac,identFrac,compareFrac,wordFrac],
+    warmup:     [add20,add20,add100,sub100,oddeven,placevalue],
+    main:       [mult,mult,div,add1000,sub1000,mult10,parens],
+    fractions:  [identFrac,identFrac,compareFrac,wordFrac],
+    teambattle: [mult,mult,div,parens,add1000,sub1000,mult10,identFrac,compareFrac,add100,sub100],
   };
-  return pick(pools[mode])();
+  return pick(pools[mode]||pools.main)();
 }
 
 function add20() {
@@ -543,7 +578,8 @@ function renderHome() {
         <div class="mode-stars">${starStr}</div>
       </div>
       <div class="mode-topics">${m.topics}</div>
-      ${!unlocked?'<div class="lock-badge">🔒</div>':''}
+      ${!unlocked && m.id==='teambattle' ? `<div style="font-size:.7em;color:var(--accent3);margin-top:6px">Collect ${5-(progress.team||[]).length} more monster${5-(progress.team||[]).length===1?'':'s'} to unlock! 🔒</div>` : ''}
+      ${!unlocked && m.id!=='teambattle' ? '<div class="lock-badge">🔒</div>' : ''}
     `;
     if(unlocked) div.onclick=()=>startMode(m.id);
     grid.appendChild(div);
@@ -587,8 +623,9 @@ function loadMonster() {
   const m=getMonster();
   $('enemySprite').textContent=m.emoji;
   $('enemyName').textContent=m.name;
-  $('enemyTaunt').textContent=m.taunt;
-  G.enemyHp=4;
+  $('enemyTaunt').textContent=G.mode==='teambattle' ? '"You\'ll never beat the whole team… right?!"' : m.taunt;
+  G.enemyHp = G.mode==='teambattle' ? 6 : 4; // tougher enemies in Team Battle
+  G.enemyMaxHp = G.enemyHp;
   updateBars();
   nextQuestion();
 }
@@ -609,14 +646,56 @@ function showBattle() {
 
 function updateBattleTeam() {
   const team = progress.team || [];
-  const el = $('battleTeam'); el.innerHTML='';
-  team.forEach(m=>{
-    const span=document.createElement('span');
-    span.className='battle-team-member';
-    span.textContent=m.emoji;
-    span.title=m.name;
-    el.appendChild(span);
-  });
+  const isTeamBattle = G.mode === 'teambattle';
+
+  // Mini bar (normal modes)
+  const miniBar = $('battleTeam');
+  miniBar.style.display = isTeamBattle ? 'none' : 'flex';
+  miniBar.innerHTML='';
+  if(!isTeamBattle) {
+    team.forEach((m,i)=>{
+      const span=document.createElement('span');
+      span.className='battle-team-member';
+      span.id=`mini-tm-${i}`;
+      span.textContent=m.emoji;
+      span.title=m.name;
+      miniBar.appendChild(span);
+    });
+  }
+
+  // Full Team Battle panel
+  const panel = $('teamBattlePanel');
+  const fighters = $('teamFighters');
+  if(isTeamBattle) {
+    panel.style.display='block';
+    fighters.innerHTML='';
+    team.forEach((m,i)=>{
+      const slot=document.createElement('div');
+      slot.className='team-fighter-slot';
+      slot.id=`tf-${i}`;
+      slot.innerHTML=`<div class="tf-emoji">${m.emoji}</div><div class="tf-name">${m.name.split(' ')[0]}</div>`;
+      fighters.appendChild(slot);
+    });
+  } else {
+    panel.style.display='none';
+  }
+}
+
+function animateTeamAttack() {
+  const team = progress.team || [];
+  if(G.mode === 'teambattle') {
+    // All team fighters bounce at once
+    team.forEach((_,i)=>{
+      const el=$(`tf-${i}`);
+      if(el){ el.classList.remove('tf-attacking'); void el.offsetWidth; el.classList.add('tf-attacking'); }
+    });
+  } else {
+    // Mini bar members all bounce
+    team.forEach((_,i)=>{
+      const el=$(`mini-tm-${i}`);
+      if(el){ el.classList.remove('attacking'); void el.offsetWidth; el.classList.add('attacking'); }
+    });
+  }
 }
 
 function updateHeader() {
@@ -626,10 +705,11 @@ function updateHeader() {
 }
 
 function updateBars() {
+  const eMax = G.enemyMaxHp || 4;
   $('heroBar').style.width=(G.heroHp/4*100)+'%';
-  $('enemyBar').style.width=(G.enemyHp/4*100)+'%';
+  $('enemyBar').style.width=(G.enemyHp/eMax*100)+'%';
   $('heroHpTxt').textContent=`❤️ ${G.heroHp}/4`;
-  $('enemyHpTxt').textContent=`💜 ${G.enemyHp}/4`;
+  $('enemyHpTxt').textContent=`💜 ${G.enemyHp}/${eMax}`;
 }
 
 function renderQ() {
@@ -697,6 +777,7 @@ function processResult(correct) {
     feedback(true);
     anim($('heroSprite'),'anim-bounce');
     anim($('enemySprite'),'anim-shake');
+    animateTeamAttack();
     $('answerInput').disabled=true; $('submitBtn').disabled=true;
     G.enemyHp--;
     setTimeout(()=>{ updateBars(); if(G.enemyHp<=0) setTimeout(onMonsterDefeated,350); else setTimeout(nextQuestion,700); },400);
@@ -786,8 +867,12 @@ function roundOver() {
   saveProgress();
 
   let msg='';
+  const teamSize = (progress.team||[]).length;
   if(G.mode==='warmup'&&progress.warmup.done===1) msg='🎉 You unlocked Main Battle!';
   else if(G.mode==='main'&&progress.main.done===1) msg='🎉 You unlocked Fractions mode!';
+  else if(teamSize>=5 && !progress.teambattleNotified) { progress.teambattleNotified=true; saveProgress(); msg='🔥 TEAM BATTLE UNLOCKED! Your monsters are ready to fight together!'; }
+  else if(G.mode==='teambattle') msg=stars===3?'Your team is UNSTOPPABLE! 🔥':'Great team effort! 💪';
+  else if(teamSize<5) msg=`Collect ${5-teamSize} more monster${5-teamSize===1?'':'s'} to unlock Team Battle! 🔥`;
   else msg=stars===3?'Perfect! You\'re a math monster slayer! 🗡️':stars===2?'Great job! Keep practicing! 💪':'You did it! More stars next time! ⭐';
 
   $('starsRow').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);
