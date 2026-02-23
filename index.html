@@ -256,6 +256,51 @@
     border-radius: 3px; animation: confettiFall linear forwards;
   }
 
+  /* ── AVATAR SELECT ── */
+  #avatar {
+    background: radial-gradient(ellipse at top, #1a0a2e 0%, #0d0017 100%);
+    padding: 0 0 30px;
+  }
+  .avatar-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px; background: rgba(0,0,0,.3);
+    border-bottom: 1px solid rgba(255,255,255,.08); margin-bottom: 4px;
+  }
+  .back-btn {
+    background: rgba(255,255,255,.1); border: none; border-radius: 10px;
+    color: var(--text2); font-size: .9em; padding: 6px 12px; cursor: pointer;
+  }
+  .avatar-title { font-size: 1.2em; font-weight: 800; color: var(--text); }
+  .avatar-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 12px; padding: 12px 14px;
+  }
+  .avatar-card {
+    background: var(--card); border-radius: var(--radius);
+    padding: 16px 12px; text-align: center; cursor: pointer;
+    border: 2px solid transparent; transition: all .2s;
+    position: relative;
+  }
+  .avatar-card:hover { transform: translateY(-2px); }
+  .avatar-card.selected { border-color: var(--accent3); box-shadow: 0 0 18px rgba(255,215,0,.3); }
+  .avatar-card.selected::after {
+    content: '✅'; position: absolute; top: 8px; right: 10px; font-size: 1em;
+  }
+  .av-sprite { font-size: 3.2em; line-height: 1; margin-bottom: 6px; display: block; }
+  .av-name { font-size: .95em; font-weight: 800; margin-bottom: 3px; }
+  .av-title { font-size: .68em; color: var(--text2); line-height: 1.3; }
+  .av-tag {
+    display: inline-block; font-size: .6em; font-weight: 700; padding: 2px 8px;
+    border-radius: 10px; margin-top: 5px; text-transform: uppercase; letter-spacing: .5px;
+  }
+
+  .choose-hero-btn {
+    background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15);
+    border-radius: 20px; color: var(--text2); font-size: .82em; font-weight: 600;
+    padding: 6px 16px; cursor: pointer; margin-bottom: 12px; transition: all .2s;
+  }
+  .choose-hero-btn:hover { background: rgba(255,255,255,.15); color: var(--text); }
+
   /* ── SCRATCHPAD ── */
   .scratch-trigger {
     background: rgba(255,255,255,.12); border: none; border-radius: 8px;
@@ -318,6 +363,8 @@
     <h1>🐉 Math Monsters</h1>
     <p>Georgia's Monster Battle Academy</p>
   </div>
+  <div id="heroPreviewBar" style="text-align:center;margin-bottom:4px;font-size:2.6em;line-height:1"></div>
+  <button class="choose-hero-btn" onclick="showScreen('avatar')">🎭 Choose Your Hero</button>
   <div class="mode-grid" id="modeGrid"></div>
   <div class="team-section" id="teamSection" style="display:none">
     <div class="team-title">🏅 Georgia's Monster Team</div>
@@ -420,6 +467,15 @@
   <button class="big-btn alt" onclick="goHome()">🏠 Home</button>
 </div>
 
+<!-- ═══ AVATAR SELECT ═══ -->
+<div id="avatar" class="screen">
+  <div class="avatar-header">
+    <button class="back-btn" onclick="renderHome()">← Back</button>
+    <h2 class="avatar-title">Choose Your Hero</h2>
+  </div>
+  <div class="avatar-grid" id="avatarGrid"></div>
+</div>
+
 <!-- ═══ SCRATCHPAD MODAL ═══ -->
 <div id="scratchModal" style="display:none">
   <div class="scratch-header">
@@ -444,6 +500,19 @@
 // ══════════════════════════════════════
 // DATA
 // ══════════════════════════════════════
+const AVATARS = [
+  { id:'georgia',  sprite:'🦸‍♀️', name:'Georgia',   title:'The Original Hero',        tag:'Classic',    tagColor:'#00d4aa' },
+  { id:'jade',     sprite:'🗡️🧍‍♀️', name:'Jade',    title:'6\'7" Warrior Queen\nRuler of the Math Realm',     tag:'Warrior',    tagColor:'#ff6b9d' },
+  { id:'mia',      sprite:'👩‍🎤',   name:'Mia',      title:'K-Pop Demon Hunter\n"Math is my battle song"',     tag:'K-Pop',      tagColor:'#a855f7' },
+  { id:'yuna',     sprite:'🌸👊',   name:'Yuna',     title:'K-Pop Demon Hunter\nPink blade, zero mercy',       tag:'K-Pop',      tagColor:'#ec4899' },
+  { id:'kai',      sprite:'⚡👩',   name:'Kai',      title:'K-Pop Demon Hunter\nElectric strikes, pure fire',  tag:'K-Pop',      tagColor:'#3b82f6' },
+  { id:'zara',     sprite:'🔥🧝‍♀️', name:'Zara',    title:'K-Pop Demon Hunter\nShe burns the wrong answers',  tag:'K-Pop',      tagColor:'#f97316' },
+  { id:'nova',     sprite:'🚀👩‍🚀', name:'Nova',     title:'Star Math Commander\nCalculates at light speed',   tag:'Space',      tagColor:'#6366f1' },
+  { id:'storm',    sprite:'🌪️🧚‍♀️',name:'Storm',    title:'Wind Witch of Numbers\nBlows wrong answers away',  tag:'Magic',      tagColor:'#14b8a6' },
+];
+
+const getAvatar = () => AVATARS.find(a=>a.id===(progress.avatarId||'georgia')) || AVATARS[0];
+
 const MONSTERS = [
   { name:'Slime Sammy',  emoji:'🟢', taunt:'"Heh heh, bet you can\'t!"' },
   { name:'Ghost Gus',    emoji:'👻', taunt:'"Can you see through my tricks?"' },
@@ -630,6 +699,24 @@ function anim(el, cls) {
 // ══════════════════════════════════════
 // HOME
 // ══════════════════════════════════════
+function renderAvatar() {
+  const grid=$('avatarGrid'); grid.innerHTML='';
+  AVATARS.forEach(av=>{
+    const selected=(progress.avatarId||'georgia')===av.id;
+    const card=document.createElement('div');
+    card.className=`avatar-card${selected?' selected':''}`;
+    card.style.borderColor=selected?av.tagColor:'transparent';
+    card.innerHTML=`
+      <span class="av-sprite">${av.sprite}</span>
+      <div class="av-name" style="color:${av.tagColor}">${av.name}</div>
+      <div class="av-title">${av.title}</div>
+      <span class="av-tag" style="background:${av.tagColor}22;color:${av.tagColor}">${av.tag}</span>
+    `;
+    card.onclick=()=>{ progress.avatarId=av.id; saveProgress(); renderAvatar(); };
+    grid.appendChild(card);
+  });
+}
+
 function renderHome() {
   const grid = $('modeGrid'); grid.innerHTML='';
   MODES.forEach(m=>{
@@ -651,6 +738,10 @@ function renderHome() {
     if(unlocked) div.onclick=()=>startMode(m.id);
     grid.appendChild(div);
   });
+
+  // Show selected hero
+  const av = getAvatar();
+  $('heroPreviewBar').textContent = av.sprite;
 
   // Render team
   const team = progress.team || [];
@@ -707,6 +798,8 @@ function nextQuestion() {
 function showBattle() {
   const m=MODES.find(x=>x.id===G.mode);
   $('bMode').textContent=m.label;
+  const av=getAvatar();
+  $('heroSprite').textContent=av.sprite;
   updateBars(); updateHeader(); updateBattleTeam();
   showScreen('battle');
 }
