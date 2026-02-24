@@ -409,7 +409,7 @@
     <p>Georgia's Monster Battle Academy</p>
   </div>
   <div id="heroPreviewBar" style="text-align:center;margin-bottom:4px;font-size:2.6em;line-height:1"></div>
-  <button class="choose-hero-btn" onclick="showScreen('avatar')">🎭 Choose Your Hero</button>
+  <button class="choose-hero-btn" onclick="renderAvatar();showScreen('avatar')">🎭 Choose Your Hero</button>
   <div class="mode-grid" id="modeGrid"></div>
   <div class="team-section" id="teamSection" style="display:none">
     <div class="team-title">🏅 Georgia's Monster Team</div>
@@ -574,14 +574,18 @@
 // DATA
 // ══════════════════════════════════════
 const AVATARS = [
-  { id:'georgia',  sprite:'🦸‍♀️', name:'Georgia',   title:'The Original Hero',        tag:'Classic',    tagColor:'#00d4aa' },
-  { id:'jade',     sprite:'🗡️🧍‍♀️', name:'Jade',    title:'6\'7" Warrior Queen\nRuler of the Math Realm',     tag:'Warrior',    tagColor:'#ff6b9d' },
-  { id:'mia',      sprite:'👩‍🎤',   name:'Mia',      title:'K-Pop Demon Hunter\n"Math is my battle song"',     tag:'K-Pop',      tagColor:'#a855f7' },
-  { id:'yuna',     sprite:'🌸👊',   name:'Yuna',     title:'K-Pop Demon Hunter\nPink blade, zero mercy',       tag:'K-Pop',      tagColor:'#ec4899' },
-  { id:'kai',      sprite:'⚡👩',   name:'Kai',      title:'K-Pop Demon Hunter\nElectric strikes, pure fire',  tag:'K-Pop',      tagColor:'#3b82f6' },
-  { id:'zara',     sprite:'🔥🧝‍♀️', name:'Zara',    title:'K-Pop Demon Hunter\nShe burns the wrong answers',  tag:'K-Pop',      tagColor:'#f97316' },
-  { id:'nova',     sprite:'🚀👩‍🚀', name:'Nova',     title:'Star Math Commander\nCalculates at light speed',   tag:'Space',      tagColor:'#6366f1' },
-  { id:'storm',    sprite:'🌪️🧚‍♀️',name:'Storm',    title:'Wind Witch of Numbers\nBlows wrong answers away',  tag:'Magic',      tagColor:'#14b8a6' },
+  { id:'georgia',  sprite:'🦸‍♀️',   name:'Georgia',       title:'The Original Hero\nFirst of her name',              tag:'Classic',    tagColor:'#00d4aa' },
+  { id:'spider',   sprite:'🕷️🦸‍♀️', name:'Spider-Girl',   title:'Climbs walls, solves problems\n"With great math comes great power"', tag:'Hero', tagColor:'#e11d48' },
+  { id:'lightning',sprite:'⚡🦸‍♀️', name:'Lightning Lass', title:'Moves at the speed of math\nOne strike, right answer', tag:'Hero',   tagColor:'#eab308' },
+  { id:'stargirl', sprite:'🌟🦸‍♀️', name:'Star Girl',      title:'Flies on beams of starlight\nCorrect answers = more power', tag:'Hero', tagColor:'#818cf8' },
+  { id:'shadow',   sprite:'🐾🦸‍♀️', name:'Shadow Cat',     title:'Phases through wrong answers\nOnly the truth lands', tag:'Hero',     tagColor:'#a78bfa' },
+  { id:'jade',     sprite:'🗡️🧍‍♀️', name:'Jade',           title:'6\'7" Warrior Queen\nRuler of the Math Realm',     tag:'Warrior',    tagColor:'#ff6b9d' },
+  { id:'mia',      sprite:'👩‍🎤',    name:'Mia',            title:'K-Pop Demon Hunter\n"Math is my battle song"',     tag:'K-Pop',      tagColor:'#a855f7' },
+  { id:'yuna',     sprite:'🌸👊',    name:'Yuna',           title:'K-Pop Demon Hunter\nPink blade, zero mercy',       tag:'K-Pop',      tagColor:'#ec4899' },
+  { id:'kai',      sprite:'⚡👩',    name:'Kai',            title:'K-Pop Demon Hunter\nElectric strikes, pure fire',  tag:'K-Pop',      tagColor:'#3b82f6' },
+  { id:'zara',     sprite:'🔥🧝‍♀️', name:'Zara',           title:'K-Pop Demon Hunter\nShe burns the wrong answers',  tag:'K-Pop',      tagColor:'#f97316' },
+  { id:'nova',     sprite:'🚀👩‍🚀', name:'Nova',           title:'Star Math Commander\nCalculates at light speed',   tag:'Space',      tagColor:'#6366f1' },
+  { id:'storm',    sprite:'🌪️🧚‍♀️', name:'Storm',          title:'Wind Witch of Numbers\nBlows wrong answers away',  tag:'Magic',      tagColor:'#14b8a6' },
 ];
 
 const getAvatar = () => AVATARS.find(a=>a.id===(progress.avatarId||'georgia')) || AVATARS[0];
