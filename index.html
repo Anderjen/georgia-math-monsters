@@ -348,6 +348,51 @@
     ), #fffdf4;
   }
 
+  /* ── ARCADE ── */
+  #arcade {
+    background: #050010;
+    padding: 0; overflow: hidden;
+  }
+  .arcade-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 14px; background: rgba(0,0,0,.5);
+    border-bottom: 1px solid rgba(255,215,0,.2); flex-shrink: 0;
+  }
+  .arcade-hud { font-size: .85em; font-weight: 700; color: var(--accent3); }
+  .arcade-lives { font-size: 1em; letter-spacing: 2px; }
+  .arcade-title-bar {
+    text-align: center; font-size: .72em; font-weight: 700;
+    color: #ff4500; text-transform: uppercase; letter-spacing: 2px;
+    padding: 4px 0; background: rgba(255,69,0,.1);
+    border-bottom: 1px solid rgba(255,69,0,.2); flex-shrink: 0;
+    animation: pulseGlow 2s ease-in-out infinite;
+  }
+  #arcadeCanvas { flex: 1; width: 100%; display: block; touch-action: none; }
+  .arcade-controls {
+    display: flex; gap: 10px; padding: 10px 14px 14px;
+    background: rgba(0,0,0,.4); flex-shrink: 0; align-items: center;
+  }
+  .arc-btn {
+    flex: 1; border: none; border-radius: 14px; font-size: 1.4em; font-weight: 900;
+    padding: 14px 0; cursor: pointer; transition: all .1s; user-select: none;
+    -webkit-user-select: none; touch-action: manipulation;
+  }
+  .arc-btn:active { transform: scale(.92); }
+  .arc-btn.left  { background: linear-gradient(135deg,#2d1b4e,#3d2b5e); color: var(--text); }
+  .arc-btn.right { background: linear-gradient(135deg,#2d1b4e,#3d2b5e); color: var(--text); }
+  .arc-btn.fire  { flex: 2; background: linear-gradient(135deg,#ff4500,#c0392b); color: #fff;
+                   box-shadow: 0 4px 20px rgba(255,69,0,.5); font-size: 1.1em; }
+  .arc-btn.home  { flex: 0 0 48px; background: rgba(255,255,255,.1); color: var(--text2); font-size: 1em; }
+  .arcade-overlay {
+    position: absolute; inset: 0; background: rgba(0,0,0,.75);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 10; text-align: center; padding: 20px; pointer-events: none;
+  }
+  .arcade-overlay .ov-icon  { font-size: 4em; margin-bottom: 12px; }
+  .arcade-overlay .ov-title { font-size: 2em; font-weight: 900; margin-bottom: 8px; }
+  .arcade-overlay .ov-sub   { color: var(--text2); font-size: .9em; margin-bottom: 20px; }
+  .arcade-overlay .ov-btns  { display: flex; gap: 10px; pointer-events: all; }
+
   @media (max-width: 380px) {
     .q-text { font-size: 1.5em; }
     .sprite  { font-size: 3.2em; }
@@ -455,6 +500,7 @@
   <div class="stars-row" id="starsRow">⭐⭐⭐</div>
   <div class="stats-line" id="winStats"></div>
   <div class="result-sub" id="winMsg"></div>
+  <button class="big-btn" style="background:linear-gradient(135deg,#ff4500,#c0392b);box-shadow:0 4px 18px rgba(255,69,0,.4)" onclick="startArcade()">💥 Bonus Battle!</button>
   <button class="big-btn" onclick="goHome()">🏠 Choose Mode</button>
   <button class="big-btn alt" onclick="playAgain()">▶️ Play Again</button>
 </div>
@@ -466,6 +512,32 @@
   <div class="result-sub">That monster got you this time!<br>You can do it — let's try again! 💪</div>
   <button class="big-btn" onclick="retryRound()">🔄 Try Again!</button>
   <button class="big-btn alt" onclick="goHome()">🏠 Home</button>
+</div>
+
+<!-- ═══ ARCADE ═══ -->
+<div id="arcade" class="screen" style="position:relative">
+  <div class="arcade-header">
+    <span class="arcade-hud">💥 Score: <span id="arcScore">0</span></span>
+    <span style="color:var(--accent3);font-size:.75em;font-weight:700">BONUS BATTLE!</span>
+    <span class="arcade-lives" id="arcLives">❤️❤️❤️</span>
+  </div>
+  <div class="arcade-title-bar">⚡ Defeat the invaders! ⚡</div>
+  <canvas id="arcadeCanvas"></canvas>
+  <div class="arcade-controls">
+    <button class="arc-btn home" onpointerdown="goHome()" title="Home">🏠</button>
+    <button class="arc-btn left"  id="arcLeft"  onpointerdown="arcMoveStart(-1)" onpointerup="arcMoveStop()" onpointerleave="arcMoveStop()">◀</button>
+    <button class="arc-btn fire"  onpointerdown="arcFire()">🔥 FIRE!</button>
+    <button class="arc-btn right" id="arcRight" onpointerdown="arcMoveStart(1)"  onpointerup="arcMoveStop()" onpointerleave="arcMoveStop()">▶</button>
+  </div>
+  <div class="arcade-overlay" id="arcOverlay" style="display:none">
+    <div class="ov-icon" id="arcOvIcon">🏆</div>
+    <div class="ov-title" id="arcOvTitle">YOU WIN!</div>
+    <div class="ov-sub"   id="arcOvSub"></div>
+    <div class="ov-btns">
+      <button class="big-btn" onclick="initArcade()">▶️ Play Again</button>
+      <button class="big-btn alt" onclick="goHome()">🏠 Home</button>
+    </div>
+  </div>
 </div>
 
 <!-- ═══ AVATAR SELECT ═══ -->
@@ -1045,7 +1117,7 @@ function roundOver() {
 
 function retryRound() { startMode(G.mode); }
 function playAgain()  { startMode(G.mode); }
-function goHome()     { renderHome(); }
+function goHome()     { if(arcRaf){ cancelAnimationFrame(arcRaf); arcRaf=null; } renderHome(); }
 
 // ══════════════════════════════════════
 // CONFETTI
@@ -1143,8 +1215,272 @@ function scratchEnd(e) {
 // KEYBOARD
 // ══════════════════════════════════════
 document.addEventListener('keydown', e=>{
-  if(e.key==='Enter' && document.querySelector('.screen.active')?.id==='battle') submitTyped();
+  const active = document.querySelector('.screen.active')?.id;
+  if(e.key==='Enter' && active==='battle') submitTyped();
+  if(active==='arcade') {
+    if(e.key==='ArrowLeft')  { e.preventDefault(); arcMoveStart(-1); }
+    if(e.key==='ArrowRight') { e.preventDefault(); arcMoveStart(1);  }
+    if(e.key===' ' || e.key==='ArrowUp') { e.preventDefault(); arcFire(); }
+  }
 });
+document.addEventListener('keyup', e=>{
+  if(document.querySelector('.screen.active')?.id==='arcade') {
+    if(e.key==='ArrowLeft' || e.key==='ArrowRight') arcMoveStop();
+  }
+});
+
+// ══════════════════════════════════════
+// ARCADE GAME  (Space Invaders style)
+// ══════════════════════════════════════
+let ARC  = null;   // game state
+let arcRaf = null; // animation frame
+
+function startArcade() {
+  showScreen('arcade');
+  setTimeout(initArcade, 60); // wait one frame for layout
+}
+
+function initArcade() {
+  if(arcRaf) { cancelAnimationFrame(arcRaf); arcRaf = null; }
+
+  const canvas = $('arcadeCanvas');
+  canvas.width  = canvas.offsetWidth  || 360;
+  canvas.height = canvas.offsetHeight || 420;
+  const W = canvas.width, H = canvas.height;
+
+  $('arcOverlay').style.display = 'none';
+
+  // Build invader grid — 3 rows × 6 cols
+  const COLS = 6, ROWS = 3;
+  const padX  = 28;
+  const cellW = (W - padX * 2) / COLS;
+  const invaders = [];
+  for(let r = 0; r < ROWS; r++) {
+    for(let c = 0; c < COLS; c++) {
+      const m = MONSTERS[(r * 2 + c) % MONSTERS.length];
+      invaders.push({
+        x: padX + cellW * c + cellW / 2,
+        y: 50 + r * 52,
+        emoji: m.emoji, name: m.name,
+        alive: true,
+        flashFrames: 0,
+      });
+    }
+  }
+
+  ARC = {
+    W, H,
+    player: { x: W / 2, y: H - 30, dir: 0, speed: 5, flashFrames: 0 },
+    bullets:  [],   // player shots  { x, y }
+    ebullets: [],   // enemy shots   { x, y }
+    invaders,
+    invDir: 1, invSpeed: 0.55,
+    score: 0, lives: 3,
+    phase: 'playing',
+    frame: 0,
+    shootCooldown: 0,
+    eShootTimer: 90,
+    particles: [],  // hit sparks { x, y, vx, vy, life, color }
+  };
+
+  updateArcHUD();
+  arcRaf = requestAnimationFrame(arcTick);
+}
+
+function arcTick() {
+  if(!ARC || ARC.phase !== 'playing') return;
+  const canvas = $('arcadeCanvas');
+  const ctx    = canvas.getContext('2d');
+  const { W, H } = ARC;
+  ARC.frame++;
+
+  // ── Update player ──
+  ARC.player.x = Math.max(22, Math.min(W - 22, ARC.player.x + ARC.player.dir * ARC.player.speed));
+  if(ARC.player.flashFrames > 0) ARC.player.flashFrames--;
+  if(ARC.shootCooldown > 0) ARC.shootCooldown--;
+
+  // ── Update invaders ──
+  const alive = ARC.invaders.filter(i => i.alive);
+  if(alive.length === 0) { arcWin(); return; }
+
+  let hitEdge = false;
+  for(const inv of alive) {
+    inv.x += ARC.invDir * ARC.invSpeed;
+    if(inv.x > W - 18 || inv.x < 18) hitEdge = true;
+    if(inv.flashFrames > 0) inv.flashFrames--;
+  }
+  if(hitEdge) {
+    ARC.invDir   *= -1;
+    ARC.invSpeed  = Math.min(ARC.invSpeed + 0.12, 4.5);
+    for(const inv of alive) inv.y += 16;
+  }
+  if(alive.some(i => i.y > H - 55)) { arcGameOver(); return; }
+
+  // ── Player bullets ──
+  for(const b of ARC.bullets)  b.y -= 9;
+  ARC.bullets = ARC.bullets.filter(b => b.y > -10);
+
+  // ── Enemy bullets ──
+  for(const b of ARC.ebullets) b.y += 4.5;
+  ARC.ebullets = ARC.ebullets.filter(b => b.y < H + 10);
+
+  // ── Enemy shooting ──
+  ARC.eShootTimer--;
+  if(ARC.eShootTimer <= 0 && alive.length) {
+    const shooter = alive[Math.floor(Math.random() * alive.length)];
+    ARC.ebullets.push({ x: shooter.x, y: shooter.y + 20 });
+    ARC.eShootTimer = Math.max(18, 90 - Math.floor(ARC.frame / 70));
+  }
+
+  // ── Bullet vs invader ──
+  for(const b of ARC.bullets) {
+    if(b.y < -5) continue;
+    for(const inv of ARC.invaders) {
+      if(!inv.alive) continue;
+      if(Math.abs(b.x - inv.x) < 20 && Math.abs(b.y - inv.y) < 20) {
+        inv.alive = false;
+        b.y = -999;
+        ARC.score += 10;
+        updateArcHUD();
+        spawnParticles(inv.x, inv.y, '#ffd700', 8);
+      }
+    }
+  }
+
+  // ── Enemy bullet vs player ──
+  const px = ARC.player.x, py = ARC.player.y;
+  for(const b of ARC.ebullets) {
+    if(b.y > H) continue;
+    if(Math.abs(b.x - px) < 18 && Math.abs(b.y - py) < 18) {
+      b.y = H + 999;
+      ARC.lives--;
+      ARC.player.flashFrames = 30;
+      updateArcHUD();
+      spawnParticles(px, py, '#ff4757', 6);
+      if(ARC.lives <= 0) { arcGameOver(); return; }
+    }
+  }
+
+  // ── Particles ──
+  for(const p of ARC.particles) { p.x+=p.vx; p.y+=p.vy; p.vy+=0.2; p.life--; }
+  ARC.particles = ARC.particles.filter(p => p.life > 0);
+
+  // ══ DRAW ══
+  ctx.fillStyle = '#050010';
+  ctx.fillRect(0, 0, W, H);
+
+  // Starfield
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  for(let i = 0; i < 45; i++) {
+    const sx = (i * 137.5 + (i%2===0 ? ARC.frame * 0.12 : 0)) % W;
+    const sy = (i * 79.3  + ARC.frame * 0.06) % H;
+    ctx.fillRect(sx, sy, i % 7 === 0 ? 2 : 1, i % 7 === 0 ? 2 : 1);
+  }
+
+  // Danger line (where invaders must not pass)
+  if(alive.some(i => i.y > H - 90)) {
+    ctx.strokeStyle = 'rgba(255,69,0,0.3)';
+    ctx.lineWidth   = 1;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath(); ctx.moveTo(0, H - 55); ctx.lineTo(W, H - 55); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Invaders
+  ctx.font = '26px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for(const inv of ARC.invaders) {
+    if(!inv.alive) continue;
+    ctx.save();
+    const wobble = Math.sin(ARC.frame * 0.07 + inv.x * 0.05) * 2.5;
+    if(inv.flashFrames > 0) ctx.filter = 'brightness(3)';
+    ctx.translate(inv.x, inv.y + wobble);
+    ctx.fillText(inv.emoji, 0, 0);
+    ctx.restore();
+  }
+
+  // Player bullets — teal laser
+  ctx.shadowColor = '#00d4aa'; ctx.shadowBlur = 14;
+  ctx.fillStyle   = '#00f5c4';
+  for(const b of ARC.bullets) {
+    ctx.beginPath();
+    ctx.roundRect(b.x - 3, b.y - 10, 6, 18, 3);
+    ctx.fill();
+  }
+  ctx.shadowBlur = 0;
+
+  // Enemy bullets — red orbs
+  ctx.shadowColor = '#ff4757'; ctx.shadowBlur = 10;
+  ctx.fillStyle   = '#ff6b9d';
+  for(const b of ARC.ebullets) {
+    ctx.beginPath(); ctx.arc(b.x, b.y, 5, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.shadowBlur = 0;
+
+  // Particles (hit sparks)
+  for(const p of ARC.particles) {
+    ctx.globalAlpha = p.life / 15;
+    ctx.fillStyle   = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Player hero sprite (flash when hit)
+  if(ARC.player.flashFrames % 6 < 3) {
+    ctx.font = '30px serif';
+    ctx.fillText(getAvatar().sprite, px, py);
+  }
+
+  arcRaf = requestAnimationFrame(arcTick);
+}
+
+// ── Spawn particle burst ──
+function spawnParticles(x, y, color, n) {
+  for(let i = 0; i < n; i++) {
+    const angle = (i / n) * Math.PI * 2;
+    ARC.particles.push({
+      x, y,
+      vx: Math.cos(angle) * (1 + Math.random() * 3),
+      vy: Math.sin(angle) * (1 + Math.random() * 3) - 1,
+      life: 10 + Math.floor(Math.random() * 8),
+      color,
+    });
+  }
+}
+
+function arcMoveStart(dir) { if(ARC) ARC.player.dir = dir; }
+function arcMoveStop()     { if(ARC) ARC.player.dir = 0;   }
+
+function arcFire() {
+  if(!ARC || ARC.phase !== 'playing' || ARC.shootCooldown > 0) return;
+  ARC.bullets.push({ x: ARC.player.x, y: ARC.player.y - 24 });
+  ARC.shootCooldown = 13;
+}
+
+function updateArcHUD() {
+  $('arcScore').textContent = ARC.score;
+  $('arcLives').textContent  = '❤️'.repeat(Math.max(0, ARC.lives)) || '💀';
+}
+
+function arcGameOver() {
+  ARC.phase = 'over';
+  if(arcRaf) { cancelAnimationFrame(arcRaf); arcRaf = null; }
+  $('arcOvIcon').textContent  = '💀';
+  $('arcOvTitle').textContent = 'GAME OVER';
+  $('arcOvSub').textContent   = `Score: ${ARC.score} — Better luck next time!`;
+  $('arcOverlay').style.display = 'flex';
+}
+
+function arcWin() {
+  ARC.phase = 'win';
+  if(arcRaf) { cancelAnimationFrame(arcRaf); arcRaf = null; }
+  $('arcOvIcon').textContent  = '🏆';
+  $('arcOvTitle').textContent = 'YOU WIN!';
+  $('arcOvSub').textContent   = `Score: ${ARC.score} — Amazing shooting! 🎯`;
+  $('arcOverlay').style.display = 'flex';
+  confetti(22);
+}
 
 // ══════════════════════════════════════
 // START
